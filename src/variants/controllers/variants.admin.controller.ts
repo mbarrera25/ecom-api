@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../common/jwt-auth.guard';
 import { Roles } from '../../common/roles.decorator';
@@ -15,6 +15,13 @@ import { VariantsService } from '../variants.service';
 @Controller('admin')
 export class AdminVariantsController {
   constructor(private readonly variantsService: VariantsService) {}
+
+  @Get('products/:productId/variants')
+  @ApiOperation({ summary: 'Listar variantes de un producto.' })
+  @ApiOkResponse({ type: [VariantResponseDto] })
+  list(@Param('productId') productId: string) {
+    return this.variantsService.listByProduct(productId);
+  }
 
   @Post('products/:productId/variants')
   @ApiOperation({ summary: 'Crear una variante para un producto.' })
