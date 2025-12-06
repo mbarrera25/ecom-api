@@ -7,6 +7,7 @@ import { CreateProductDto } from '../dto/create-product.dto';
 import { ProductFiltersDto } from '../dto/product-filters.dto';
 import { PaginatedProductsResponseDto, ProductResponseDto } from '../dto/product-response.dto';
 import { UpdateProductDto } from '../dto/update-product.dto';
+import { BatchUpdateProductsDto } from '../dto/batch-update-products.dto';
 import { ProductsService } from '../products.service';
 
 @ApiTags('admin/products')
@@ -31,6 +32,13 @@ export class AdminProductsController {
     return this.productsService.listAdmin(filters);
   }
 
+  @Get(':id')
+  @ApiOperation({ summary: 'Obtener un producto por ID (admin).' })
+  @ApiOkResponse({ type: ProductResponseDto })
+  getById(@Param('id') id: string) {
+    return this.productsService.getOrFail(id);
+  }
+
   @Patch(':id')
   @ApiOperation({ summary: 'Actualizar un producto.' })
   @ApiOkResponse({ type: ProductResponseDto })
@@ -39,10 +47,25 @@ export class AdminProductsController {
   }
 
   @Delete(':id')
-  @ApiOperation({ summary: 'Archivar un producto.' })
+  @ApiOperation({ summary: 'Archivar producto (soft delete).' })
   @ApiOkResponse({ schema: { example: { success: true } } })
   async archive(@Param('id') id: string) {
     await this.productsService.archive(id);
     return { success: true };
+  }
+
+  @Patch('batch-status')
+  @ApiOperation({ summary: 'Actualización masiva de estado.' })
+  @ApiOkResponse({ schema: { example: { success: true } } })
+  async batchUpdateStatus(@Body() dto: BatchUpdateProductsDto) {
+    await this.productsService.batchUpdateStatus(dto);
+    return { success: true };
+  }
+
+  @Post(':id/duplicate')
+  @ApiOperation({ summary: 'Duplicar producto.' })
+  @ApiOkResponse({ type: ProductResponseDto })
+  async duplicate(@Param('id') id: string) {
+    return this.productsService.duplicate(id);
   }
 }

@@ -14,6 +14,7 @@ import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { Product, ProductDocument } from './schemas/product.schema';
 import { Variant, VariantDocument } from '../variants/schemas/variant.schema';
+import { BatchUpdateProductsDto } from './dto/batch-update-products.dto';
 
 export interface ProductEntity {
   id: string;
@@ -21,8 +22,13 @@ export interface ProductEntity {
   title: string;
   description?: string;
   categoryId: string;
+  option1Name?: string;
+  option2Name?: string;
+  option3Name?: string;
   attributes: Record<string, string | number>;
-  images: string[];
+  images: { url: string; altText: string; position: number }[];
+  seoTitle?: string;
+  seoDescription?: string;
   status: Product['status'];
   createdAt: Date;
   updatedAt: Date;
@@ -64,8 +70,13 @@ export class ProductsService {
       title: dto.title.trim(),
       description: dto.description?.trim(),
       categoryId,
+      option1Name: dto.option1Name?.trim(),
+      option2Name: dto.option2Name?.trim(),
+      option3Name: dto.option3Name?.trim(),
       attributes: dto.attributes ?? {},
-      images: dto.images ?? [],
+      images: this.normalizeImagePositions(dto.images ?? []),
+      seoTitle: dto.seoTitle?.trim(),
+      seoDescription: dto.seoDescription?.trim(),
       status: dto.status ?? 'draft',
     });
 
@@ -105,12 +116,30 @@ export class ProductsService {
       updates.categoryId = categoryId;
     }
 
+    if (dto.option1Name !== undefined) {
+      updates.option1Name = dto.option1Name?.trim();
+    }
+    if (dto.option2Name !== undefined) {
+      updates.option2Name = dto.option2Name?.trim();
+    }
+    if (dto.option3Name !== undefined) {
+      updates.option3Name = dto.option3Name?.trim();
+    }
+
     if (dto.attributes !== undefined) {
       updates.attributes = dto.attributes;
     }
 
     if (dto.images !== undefined) {
-      updates.images = dto.images;
+      updates.images = this.normalizeImagePositions(dto.images);
+    }
+
+    if (dto.seoTitle !== undefined) {
+      updates.seoTitle = dto.seoTitle?.trim();
+    }
+
+    if (dto.seoDescription !== undefined) {
+      updates.seoDescription = dto.seoDescription?.trim();
     }
 
     if (dto.status !== undefined) {
@@ -143,6 +172,59 @@ export class ProductsService {
 
     if (!result) {
       throw new NotFoundException('Product not found');
+    }
+  }
+
+  async batchUpdateStatus(dto: BatchUpdateProductsDto): Promise<void> {
+    await this.productModel.updateMany(
+      { _id: { $in: dto.ids.map((id) => this.toObjectId(id)) } },
+      { $set: { status: dto.status } },
+    );
+  }
+
+  async duplicate(id: string): Promise<ProductEntity> {
+    const original = await this.productModel.findById(id).exec();
+    if (!original) {
+      throw new NotFoundException('Product not found');
+    }
+
+    try {
+      // 1. Duplicate Product
+      const newSlug = `${original.slug}-copy-${Date.now()}`;
+      const newTitle = `${original.title} (Copia)`;
+
+      const newProduct = new this.productModel({
+        ...original.toObject(),
+        _id: new Types.ObjectId(),
+        slug: newSlug,
+        title: newTitle,
+        status: 'draft',
+        createdAt: undefined,
+        updatedAt: undefined,
+      });
+
+      await newProduct.save();
+
+      // 2. Duplicate Variants
+      const variants = await this.variantModel.find({ productId: original._id }).exec();
+      if (variants.length > 0) {
+        const newVariants = variants.map((v) => ({
+          ...v.toObject(),
+          _id: new Types.ObjectId(),
+          productId: newProduct._id,
+          sku: `${v.sku}-COPY-${Date.now().toString().slice(-4)}`, // Temporary SKU to avoid conflict
+          createdAt: undefined,
+          updatedAt: undefined,
+        }));
+
+        await this.variantModel.insertMany(newVariants);
+      }
+
+      return this.toEntity(newProduct);
+    } catch (error) {
+      // If something fails, we could have a partial state, but that's acceptable
+      // since the product will be in draft status and can be deleted manually
+      throw error;
     }
   }
 
@@ -316,8 +398,8 @@ export class ProductsService {
       query.status = 'active';
     }
 
-    if (filters.q) {
-      query.$text = { $search: filters.q };
+    if (filters.q || filters.search) {
+      query.$text = { $search: (filters.q || filters.search) ?? '' };
     }
 
     if (filters.category) {
@@ -361,11 +443,33 @@ export class ProductsService {
       title: plain.title,
       description: plain.description,
       categoryId: plain.categoryId.toString(),
+      option1Name: plain.option1Name,
+      option2Name: plain.option2Name,
+      option3Name: plain.option3Name,
       attributes,
       images: plain.images ?? [],
+      seoTitle: plain.seoTitle,
+      seoDescription: plain.seoDescription,
       status: plain.status,
       createdAt: plain.createdAt,
       updatedAt: plain.updatedAt,
     };
+  }
+
+  /**
+   * Normalizes image positions to ensure they are sequential starting from 0
+   */
+  private normalizeImagePositions(images: any[]): any[] {
+    if (!images || images.length === 0) {
+      return [];
+    }
+
+    // Sort by position and reassign sequential positions
+    return images
+      .sort((a, b) => (a.position || 0) - (b.position || 0))
+      .map((img, index) => ({
+        ...img,
+        position: index,
+      }));
   }
 }

@@ -3,6 +3,17 @@ import { HydratedDocument, Types, Schema as MongooseSchema } from 'mongoose';
 
 export type ProductStatus = 'draft' | 'active' | 'archived';
 
+export class ProductImage {
+  @Prop({ required: true })
+  url: string;
+
+  @Prop({ required: false, default: '' })
+  altText: string;
+
+  @Prop({ required: true, min: 0 })
+  position: number;
+}
+
 @Schema({ timestamps: { createdAt: true, updatedAt: true } })
 export class Product {
   _id: Types.ObjectId;
@@ -22,8 +33,23 @@ export class Product {
   @Prop({ type: Map, of: MongooseSchema.Types.Mixed, default: {} })
   attributes: Record<string, string | number>;
 
-  @Prop({ type: [String], default: [] })
-  images: string[];
+  @Prop({ required: false, trim: true, maxlength: 50 })
+  option1Name?: string;
+
+  @Prop({ required: false, trim: true, maxlength: 50 })
+  option2Name?: string;
+
+  @Prop({ required: false, trim: true, maxlength: 50 })
+  option3Name?: string;
+
+  @Prop({ type: [ProductImage], default: [] })
+  images: ProductImage[];
+
+  @Prop({ required: false, trim: true, maxlength: 70 })
+  seoTitle?: string;
+
+  @Prop({ required: false, trim: true, maxlength: 160 })
+  seoDescription?: string;
 
   @Prop({ required: true, enum: ['draft', 'active', 'archived'], default: 'draft' })
   status: ProductStatus;

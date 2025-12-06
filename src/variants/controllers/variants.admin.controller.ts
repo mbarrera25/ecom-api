@@ -5,6 +5,7 @@ import { Roles } from '../../common/roles.decorator';
 import { RolesGuard } from '../../common/roles.guard';
 import { CreateVariantDto } from '../dto/create-variant.dto';
 import { UpdateVariantDto } from '../dto/update-variant.dto';
+import { BatchUpdateVariantsDto } from '../dto/batch-update-variants.dto';
 import { VariantResponseDto } from '../dto/variant-response.dto';
 import { VariantsService } from '../variants.service';
 
@@ -48,6 +49,13 @@ export class AdminVariantsController {
   @ApiOkResponse({ schema: { example: { success: true } } })
   async remove(@Param('variantId') variantId: string) {
     await this.variantsService.remove(variantId);
+    return { success: true };
+  }
+  @Patch('variants/batch-update')
+  @ApiOperation({ summary: 'Actualización masiva de variantes (precio, stock).' })
+  @ApiOkResponse({ schema: { example: { success: true } } })
+  async batchUpdate(@Body() dto: BatchUpdateVariantsDto) {
+    await this.variantsService.batchUpdate(dto);
     return { success: true };
   }
 }

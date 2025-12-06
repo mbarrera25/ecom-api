@@ -17,11 +17,35 @@ export class Variant {
   @Prop({ required: true, trim: true, uppercase: true, maxlength: 10 })
   currency: string;
 
+  @Prop({ required: false, trim: true })
+  option1Value?: string;
+
+  @Prop({ required: false, trim: true })
+  option2Value?: string;
+
+  @Prop({ required: false, trim: true })
+  option3Value?: string;
+
   @Prop({ type: Map, of: String, default: {} })
   options: Record<string, string>;
 
   @Prop({ required: false, min: 0 })
   stock?: number;
+
+  @Prop({ type: Number, min: 0 })
+  compareAtPrice?: number;
+
+  @Prop({ type: Number, min: 0 })
+  cost?: number;
+
+  @Prop({ trim: true })
+  barcode?: string;
+
+  @Prop({ type: Number, min: 0 })
+  weight?: number; // in grams
+
+  @Prop({ type: String })
+  imageId?: string; // Reference to ProductImage
 
   createdAt: Date;
   updatedAt: Date;

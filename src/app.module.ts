@@ -12,6 +12,9 @@ import { CouponsModule } from './coupons/coupons.module';
 import { PromotionsModule } from './promotions/promotions.module';
 import { InventoryModule } from './inventory/inventory.module';
 import { OrdersModule } from './orders/orders.module';
+import { UploadsModule } from './uploads/uploads.module';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'path';
 
 @Module({
   imports: [
@@ -33,6 +36,11 @@ import { OrdersModule } from './orders/orders.module';
     PromotionsModule,
     InventoryModule,
     OrdersModule,
+    UploadsModule,
+    ServeStaticModule.forRoot({
+      rootPath: join(process.cwd(), 'uploads'),
+      serveRoot: '/uploads',
+    }),
   ],
   controllers: [AppController],
   providers: [AppService],

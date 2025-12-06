@@ -25,7 +25,11 @@ async function bootstrap() {
   app.useGlobalFilters(new HttpExceptionFilter(logger));
   app.useGlobalInterceptors(new ResponseInterceptor());
 
-  app.use(helmet());
+  app.use(
+    helmet({
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+    }),
+  );
   app.use(compression());
 
   const corsOrigins = process.env.CORS_ORIGINS

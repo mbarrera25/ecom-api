@@ -1,5 +1,16 @@
 import { ApiProperty } from '@nestjs/swagger';
 
+export class ProductImageResponseDto {
+  @ApiProperty({ example: 'https://example.com/image.jpg' })
+  url: string;
+
+  @ApiProperty({ example: 'Product image description', required: false })
+  altText?: string;
+
+  @ApiProperty({ example: 0 })
+  position: number;
+}
+
 export class ProductResponseDto {
   @ApiProperty({ example: '660f1f2b58e4a4e53f5a5d9c' })
   id: string;
@@ -24,8 +35,14 @@ export class ProductResponseDto {
   })
   attributes: Record<string, string | number>;
 
-  @ApiProperty({ type: String, isArray: true })
-  images: string[];
+  @ApiProperty({ type: [ProductImageResponseDto] })
+  images: ProductImageResponseDto[];
+
+  @ApiProperty({ example: 'SEO optimized title', required: false, nullable: true })
+  seoTitle?: string;
+
+  @ApiProperty({ example: 'SEO optimized description', required: false, nullable: true })
+  seoDescription?: string;
 
   @ApiProperty({ enum: ['draft', 'active', 'archived'] })
   status: string;
