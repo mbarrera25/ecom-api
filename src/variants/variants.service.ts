@@ -8,6 +8,7 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { ProductsService } from '../products/products.service';
+import { PricingEngineService } from '../pricing/pricing-engine.service';
 import { CreateVariantDto } from './dto/create-variant.dto';
 import { UpdateVariantDto } from './dto/update-variant.dto';
 import { BatchUpdateVariantsDto } from './dto/batch-update-variants.dto';
@@ -31,7 +32,17 @@ export interface VariantEntity {
   imageId?: string;
   createdAt: Date;
   updatedAt: Date;
+  // Pricing fields (PP-BACK-03)
+  originalPrice: number;
+  finalPrice: number;
+  appliedPromotion?: {
+    id: string;
+    name: string;
+    discountType: 'percentage' | 'fixed';
+    discountValue: number;
+  };
 }
+
 
 @Injectable()
 export class VariantsService {
@@ -40,6 +51,7 @@ export class VariantsService {
     private readonly variantModel: Model<VariantDocument>,
     @Inject(forwardRef(() => ProductsService))
     private readonly productsService: ProductsService,
+    private readonly pricingEngine: PricingEngineService,
   ) {}
 
   async create(productId: string, dto: CreateVariantDto): Promise<VariantEntity> {
@@ -77,7 +89,7 @@ export class VariantsService {
       imageId: dto.imageId,
     });
 
-    return this.toEntity(variant);
+    return this.enrichWithPricing(variant, product.categoryId);
   }
 
   async update(variantId: string, dto: UpdateVariantDto): Promise<VariantEntity> {
@@ -155,7 +167,8 @@ export class VariantsService {
       throw new NotFoundException('Variant not found');
     }
 
-    return this.toEntity(updated);
+    const product = await this.productsService.findById(updated.productId.toString());
+    return this.enrichWithPricing(updated, product!.categoryId);
   }
 
   async remove(variantId: string): Promise<void> {
@@ -198,7 +211,14 @@ export class VariantsService {
       .find({ productId: new Types.ObjectId(productId) })
       .lean()
       .exec();
-    return variants.map((variant) => this.toEntity(variant));
+    // Enrich all variants with pricing
+    const product = await this.productsService.findById(productId);
+    if (!product) return [];
+    
+    const enrichedVariants = await Promise.all(
+      variants.map((variant) => this.enrichWithPricing(variant, product.categoryId))
+    );
+    return enrichedVariants;
   }
 
   private normalizeSku(sku: string): string {
@@ -215,13 +235,32 @@ export class VariantsService {
     return new Types.ObjectId(id);
   }
 
-  private toEntity(variant: VariantDocument | (Variant & { _id: Types.ObjectId })): VariantEntity {
+  /**
+   * Converts variant document toVariantEntity and enriches with pricing data (PP-BACK-04)
+   */
+  private async enrichWithPricing(
+    variant: VariantDocument | (Variant & { _id: Types.ObjectId }),
+    categoryId: string,
+  ): Promise<VariantEntity> {
     const plain = typeof (variant as any).toObject === 'function' ? (variant as any).toObject() : variant;
     const options =
       plain.options instanceof Map ? Object.fromEntries(plain.options) : plain.options ?? {};
+
+    // Calculate pricing using PricingEngine
+    const productId = plain.productId.toString();
+    const bestPromotion = await this.pricingEngine.getBestPromotionForVariant(
+      plain,
+      productId,
+      categoryId,
+    );
+
+    const finalPrice = bestPromotion
+      ? await this.pricingEngine.calculateFinalPrice(plain, productId, categoryId)
+      : plain.price;
+
     return {
       id: plain._id.toString(),
-      productId: plain.productId.toString(),
+      productId,
       sku: plain.sku,
       price: plain.price,
       compareAtPrice: plain.compareAtPrice,
@@ -237,6 +276,10 @@ export class VariantsService {
       imageId: plain.imageId,
       createdAt: plain.createdAt,
       updatedAt: plain.updatedAt,
+      // Pricing fields
+      originalPrice: plain.price,
+      finalPrice,
+      appliedPromotion: bestPromotion || undefined,
     };
   }
 

@@ -3,6 +3,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { JwtAuthGuard } from '../common/jwt-auth.guard';
 import { RolesGuard } from '../common/roles.guard';
 import { ProductsModule } from '../products/products.module';
+import { PricingModule } from '../pricing/pricing.module';
 import { AdminVariantsController } from './controllers/variants.admin.controller';
 import { Variant, VariantSchema } from './schemas/variant.schema';
 import { VariantsService } from './variants.service';
@@ -11,10 +12,10 @@ import { VariantsService } from './variants.service';
   imports: [
     MongooseModule.forFeature([{ name: Variant.name, schema: VariantSchema }]),
     forwardRef(() => ProductsModule),
+    PricingModule,
   ],
   controllers: [AdminVariantsController],
   providers: [VariantsService, JwtAuthGuard, RolesGuard],
   exports: [VariantsService],
 })
 export class VariantsModule {}
-
